@@ -1,0 +1,99 @@
+WARNING: read through the code and understand what the scripts do before
+         running them. I AM NOT RESPONSIBLE FOR ANY DAMAGE OR COMPROMISED
+         SECURITY WHICH COULD ARISE FROM USING THE SCRIPTS IN THIS REPO.
+         YOU AS YOUR OWN RISK.
+
+
+Install requirements
+    sudo pip install -r requirements.txt
+
+
+Setup AWS credentials needed for EC2 access:
+    Create ~/.boto:
+        [Credentials]
+        aws_access_key_id = YOURACCESSKEY
+        aws_secret_access_key = YOURSECRETKEY
+
+
+Edit the fabfile.py for your VPC:
+    Change:
+        env.ec2_key_pair_name
+        env.ec2_vpc_id
+        env.ec2_region
+        env.ec2_instances, particularly, set the subnet attributes to your own
+
+
+General notes:
+    Everything is done with a VPC. Ideally, we'll need a public and a private
+    subnet, though the scripts can be trivially modified to work with just a
+    single public subnet if desired. If you don't have a VPC yet, use the
+    "VPC Wizard" in the AWS console to create one first. While you can use the
+    wizard to setup a VPC with both a public and a private subnet, the wizard
+    will also try to create a NAT device, too. Since we can reuse other
+    instances for NAT, it's easiest to just let the VPC Wizard create a VPC
+    with a public subnet and then create a private subnet afterwards.
+
+    Inspect the 'fab configure_vpn_server' task for exact details on the
+    assumed network topology.
+
+    Most commands are distribution agnostic, though some are rhel-specific. We
+    test with Amazon Linux AMI, but it should work with Redhat proper and
+    CentOS. Some modifications to the fabfile will be needed if using a
+    debian-based distro.
+
+
+Setup VPN for easy access into the VPC:
+    # Default VPC configuration is very restrictive. This works out well since
+    # MySQL Cluster doesn't have any security features. At the same time, it
+    # makes it hard for even us to access the machines.
+    #
+    # To solve, we will create an IPsec VPN with strongswan. Once everything is
+    # configured, you will be able to ssh to the machines in your VPC.
+    #
+    # A security group will be created specifically for the vpn instance. The
+    # security group allows only VPN and SSH traffic though. Since we will
+    # assign a public IP to this instance, we apply a strict ingress policy.
+    #
+    # Unfortunately, the internet gateways don't do NAT. To get around this,
+    # we'll let the VPN server do NAT so that the MySQL cluster can at least
+    # talk to the outside world (for doing things like downloading packages).
+    #
+    # Instances launched by 'fab launch_instances:vpn' will be tagged as:
+    #     "mysql-cluster-benchmark-vpn=1"
+    #
+    # Of course, if you have other means of connecting to the instances via
+    # their private IPs, you can skip this step.
+
+    fab create_vpn_security_group:vpn
+    fab launch_instances:vpn
+    # Wait for the instance to finish initializing (give it a minute or two).
+    fab configure_vpn_server
+
+
+Setup cluster:
+    # The cluster will be created within a single placement group for maximum
+    # performance; particularly, if you specify 10 gigabit instances, then all
+    # nodes in the cluster are guaranteed to have full bisection bandwidth of
+    # 10 gbps. Furthermore, we default to using AMIs configured for SR-IOV
+    # enhanced networking to achieve low latency despite running in a
+    # virtualized environment.
+    #
+    # For simplicity, we create a security group which allows all inbound
+    # traffic to reach the instances. Since we are running in a VPC and do not
+    # assign public IPs to any of the instances, the only inbound traffic that
+    # can reach the instances can only come from within the VPC, which we
+    # trust, so we're good there.
+    #
+    # Instances launched by 'launch_instances:datanodes' will be tagged as:
+    #     "mysql-cluster-benchmark-datanode=1"
+
+    fab create_open_security_group:mysql-cluster
+    fab allow_source_traffic:sg=vpn-sg-id,src=mysql-cluster-sg-id
+    fab create_placement_group:mysql-cluster
+    fab launch_instances:datanodes
+    fab configure_datanodes
+
+
+Utils:
+    fab spot_prices
+    fab list_instances
