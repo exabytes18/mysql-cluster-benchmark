@@ -1,0 +1,5 @@
+[mysql-cluster]
+name=mysql-cluster
+enabled=1
+gpgcheck=0
+baseurl={{ baseurl }}

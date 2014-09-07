@@ -280,7 +280,11 @@ def list_instances():
                                           instance.private_ip_address)
 
 
-def get_instances_callable(role=None, mapper=None):
+# When this is used with roledefs, fabric will try to execute a task locally
+# if a roledef contains no hosts. This could lead to strange things happening,
+# so, we add an abort_if_none flag here which will kill the script if any
+# role is empty.
+def get_instances_callable(role=None, mapper=None, abort_if_none=False):
     def fn():
         filters = {}
         if role is not None:
@@ -292,6 +296,8 @@ def get_instances_callable(role=None, mapper=None):
             for instance in reservation.instances:
                 if instance.state != 'terminated':
                     instances.append(instance)
+        if len(instances) == 0 and abort_if_none:
+            abort('No instances found for role: %s' % role)
         return instances if mapper is None else map(mapper, instances)
 
     return fn

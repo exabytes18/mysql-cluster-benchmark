@@ -41,6 +41,11 @@ General notes:
     CentOS. Some modifications to the fabfile will be needed if using a
     debian-based distro.
 
+    Instances are tagged in EC2 with the role they fulfill for our cluster.
+    This makes it easy to select a set of instances and run some fabric task
+    against all nodes in a particular role. The tags take the form:
+        mysql-cluster-benchmark-$ROLE=1
+
 
 Setup VPN for easy access into the VPC:
     # Default VPC configuration is very restrictive. This works out well since
@@ -58,9 +63,6 @@ Setup VPN for easy access into the VPC:
     # we'll let the VPN server do NAT so that the MySQL cluster can at least
     # talk to the outside world (for doing things like downloading packages).
     #
-    # Instances launched by 'fab launch_instances:vpn' will be tagged as:
-    #     "mysql-cluster-benchmark-vpn=1"
-    #
     # Of course, if you have other means of connecting to the instances via
     # their private IPs, you can skip this step.
 
@@ -68,6 +70,18 @@ Setup VPN for easy access into the VPC:
     fab launch_instances:vpn
     # Wait for the instance to finish initializing (give it a minute or two).
     fab configure_vpn_server
+
+
+Setup internal yum repo:
+    # Using an internal yum repo makes installation of the MySQL cluster
+    # packages easier and reduces amount of external billable traffic
+    # originating from the VPC.
+    #
+    # This makes it possible to also completely isolate the private subnet from
+    # the outside world. If desired, you can skip configuring NAT for the
+    # private subnet.
+
+    fab configure_yum_repo
 
 
 Setup cluster:
@@ -80,20 +94,39 @@ Setup cluster:
     #
     # For simplicity, we create a security group which allows all inbound
     # traffic to reach the instances. Since we are running in a VPC and do not
-    # assign public IPs to any of the instances, the only inbound traffic that
-    # can reach the instances can only come from within the VPC, which we
-    # trust, so we're good there.
-    #
-    # Instances launched by 'launch_instances:datanodes' will be tagged as:
-    #     "mysql-cluster-benchmark-datanode=1"
+    # assign public IPs to any of the instances, inbound traffic can only come
+    # from within the VPC, which we trust.
 
     fab create_open_security_group:mysql-cluster
     fab allow_source_traffic:sg=vpn-sg-id,src=mysql-cluster-sg-id
     fab create_placement_group:mysql-cluster
-    fab launch_instances:datanodes
-    fab configure_datanodes
+    fab launch_instances:utility-boxes
+    fab launch_instances:data-nodes
+    fab install_mysql_cluster
+
+
+Run benchmarks:
+    fab prepare_mysql_cluster_for_benchmarking
 
 
 Utils:
     fab spot_prices
     fab list_instances
+
+
+Install MySQL Cluster on OSX:
+    The MySQL Cluster download page has a dmg which contains all the necessary
+    binaries, libraries, and header files. This worked surprisingly well for
+    me on OSX 10.9.4.
+
+    Header files (using version 7.3.6):
+        /usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/include/storage/ndb/ndbapi
+
+
+Interesting notes about MySQL Cluster:
+    "The memory space defined by DataMemory is also used to store ordered
+    indexes, which use about 10 bytes per record. Each table row is represented
+    in the ordered index. A common error among users is to assume that all
+    indexes are stored in the memory allocated by IndexMemory, but this is not
+    the case: Only primary key and unique hash indexes use this memory; ordered
+    indexes use the memory allocated by DataMemory."
