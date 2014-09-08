@@ -105,8 +105,20 @@ Setup cluster:
     fab install_mysql_cluster
 
 
+Setup load generators:
+    fab launch_instances:load-generators
+    fab install_load_generators
+
+
 Run benchmarks:
     fab prepare_mysql_cluster_for_benchmarking
+
+
+Test bandwidth between datanodes:
+    fab install_iperf
+
+    On datanode1: iperf --server
+    On datanode2: iperf --client=DATANODE_1_IP --interval=5 --time=120 --print_mss --dual
 
 
 Utils:
@@ -130,3 +142,160 @@ Interesting notes about MySQL Cluster:
     indexes are stored in the memory allocated by IndexMemory, but this is not
     the case: Only primary key and unique hash indexes use this memory; ordered
     indexes use the memory allocated by DataMemory."
+
+
+EC2 performance:
+    r3.large instances have "moderate" networking performance; this means a cap
+    of 500mbps.
+
+    r3.8xlarge have 10 gigabit networking, which aws does, in fact, deliver. In
+    this test, iperf was both sending and receiving traffic at nearly 10gbps!
+
+        [ec2-user@ip-10-0-128-82 ~]$ iperf --client=10.0.128.35 --interval=5 --time=120 --print_mss --dualtest
+        ------------------------------------------------------------
+        Server listening on TCP port 5001
+        TCP window size: 85.3 KByte (default)
+        ------------------------------------------------------------
+        ------------------------------------------------------------
+        Client connecting to 10.0.128.35, TCP port 5001
+        TCP window size: 1.23 MByte (default)
+        ------------------------------------------------------------
+        [  5] local 10.0.128.82 port 47348 connected with 10.0.128.35 port 5001
+        [  4] local 10.0.128.82 port 5001 connected with 10.0.128.35 port 49350
+        [ ID] Interval       Transfer     Bandwidth
+        [  5]  0.0- 5.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4]  0.0- 5.0 sec  5.64 GBytes  9.69 Gbits/sec
+        [  5]  5.0-10.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4]  5.0-10.0 sec  5.64 GBytes  9.69 Gbits/sec
+        [  5] 10.0-15.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 10.0-15.0 sec  5.64 GBytes  9.69 Gbits/sec
+        [  5] 15.0-20.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 15.0-20.0 sec  5.65 GBytes  9.70 Gbits/sec
+        [  5] 20.0-25.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 20.0-25.0 sec  5.65 GBytes  9.71 Gbits/sec
+        [  5] 25.0-30.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 25.0-30.0 sec  5.65 GBytes  9.71 Gbits/sec
+        [  5] 30.0-35.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 30.0-35.0 sec  5.66 GBytes  9.72 Gbits/sec
+        [  5] 35.0-40.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 35.0-40.0 sec  5.66 GBytes  9.73 Gbits/sec
+        [  5] 40.0-45.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 40.0-45.0 sec  5.67 GBytes  9.73 Gbits/sec
+        [  5] 45.0-50.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 45.0-50.0 sec  5.67 GBytes  9.74 Gbits/sec
+        [  5] 50.0-55.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 50.0-55.0 sec  5.67 GBytes  9.75 Gbits/sec
+        [  5] 55.0-60.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 55.0-60.0 sec  5.67 GBytes  9.74 Gbits/sec
+        [  5] 60.0-65.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 60.0-65.0 sec  5.67 GBytes  9.74 Gbits/sec
+        [  5] 65.0-70.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 65.0-70.0 sec  5.67 GBytes  9.74 Gbits/sec
+        [  5] 70.0-75.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 70.0-75.0 sec  5.67 GBytes  9.73 Gbits/sec
+        [  5] 75.0-80.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 75.0-80.0 sec  5.66 GBytes  9.73 Gbits/sec
+        [  5] 80.0-85.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 80.0-85.0 sec  5.67 GBytes  9.73 Gbits/sec
+        [  5] 85.0-90.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 85.0-90.0 sec  5.66 GBytes  9.72 Gbits/sec
+        [  5] 90.0-95.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 90.0-95.0 sec  5.66 GBytes  9.72 Gbits/sec
+        [  5] 95.0-100.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 95.0-100.0 sec  5.65 GBytes  9.71 Gbits/sec
+        [  5] 100.0-105.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 100.0-105.0 sec  5.65 GBytes  9.71 Gbits/sec
+        [  5] 105.0-110.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 105.0-110.0 sec  5.65 GBytes  9.70 Gbits/sec
+        [  5] 110.0-115.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  4] 110.0-115.0 sec  5.64 GBytes  9.69 Gbits/sec
+        [  5] 115.0-120.0 sec  5.71 GBytes  9.81 Gbits/sec
+        [  5]  0.0-120.0 sec   137 GBytes  9.81 Gbits/sec
+        [  5] MSS size 8949 bytes (MTU 8989 bytes, unknown interface)
+        [  4] 115.0-120.0 sec  5.64 GBytes  9.68 Gbits/sec
+        [  4]  0.0-120.0 sec   136 GBytes  9.72 Gbits/sec
+        [  4] MSS size 8949 bytes (MTU 8989 bytes, unknown interface)
+
+
+        [ec2-user@ip-10-0-128-82 ~]$ ping -c 120 -i0.2 -q 10.0.128.35
+        PING 10.0.128.35 (10.0.128.35) 56(84) bytes of data.
+
+        --- 10.0.128.35 ping statistics ---
+        120 packets transmitted, 120 received, 0% packet loss, time 23799ms
+        rtt min/avg/max/mdev = 0.069/0.076/0.118/0.014 ms
+
+
+    pair of r3.2xlarge:
+
+        [ec2-user@ip-10-0-128-158 ~]$ iperf --client=10.0.128.88 --interval=5 --time=120 --print_mss --dual
+        ------------------------------------------------------------
+        Server listening on TCP port 5001
+        TCP window size: 85.3 KByte (default)
+        ------------------------------------------------------------
+        ------------------------------------------------------------
+        Client connecting to 10.0.128.88, TCP port 5001
+        TCP window size:  704 KByte (default)
+        ------------------------------------------------------------
+        [  5] local 10.0.128.158 port 60494 connected with 10.0.128.88 port 5001
+        [  4] local 10.0.128.158 port 5001 connected with 10.0.128.88 port 37995
+        [ ID] Interval       Transfer     Bandwidth
+        [  5]  0.0- 5.0 sec   711 MBytes  1.19 Gbits/sec
+        [  4]  0.0- 5.0 sec   700 MBytes  1.17 Gbits/sec
+        [  4]  5.0-10.0 sec   597 MBytes  1.00 Gbits/sec
+        [  5]  5.0-10.0 sec   586 MBytes   984 Mbits/sec
+        [  5] 10.0-15.0 sec   591 MBytes   992 Mbits/sec
+        [  4] 10.0-15.0 sec   590 MBytes   989 Mbits/sec
+        [  5] 15.0-20.0 sec   592 MBytes   993 Mbits/sec
+        [  4] 15.0-20.0 sec   589 MBytes   988 Mbits/sec
+        [  4] 20.0-25.0 sec   589 MBytes   988 Mbits/sec
+        [  5] 20.0-25.0 sec   590 MBytes   989 Mbits/sec
+        [  5] 25.0-30.0 sec   590 MBytes   990 Mbits/sec
+        [  4] 25.0-30.0 sec   591 MBytes   991 Mbits/sec
+        [  5] 30.0-35.0 sec   584 MBytes   981 Mbits/sec
+        [  4] 30.0-35.0 sec   590 MBytes   991 Mbits/sec
+        [  5] 35.0-40.0 sec   592 MBytes   993 Mbits/sec
+        [  4] 35.0-40.0 sec   590 MBytes   989 Mbits/sec
+        [  5] 40.0-45.0 sec   593 MBytes   994 Mbits/sec
+        [  4] 40.0-45.0 sec   588 MBytes   987 Mbits/sec
+        [  4] 45.0-50.0 sec   588 MBytes   986 Mbits/sec
+        [  5] 45.0-50.0 sec   589 MBytes   989 Mbits/sec
+        [  4] 50.0-55.0 sec   593 MBytes   995 Mbits/sec
+        [  5] 50.0-55.0 sec   585 MBytes   981 Mbits/sec
+        [  5] 55.0-60.0 sec   592 MBytes   993 Mbits/sec
+        [  4] 55.0-60.0 sec   590 MBytes   989 Mbits/sec
+        [  4] 60.0-65.0 sec   590 MBytes   989 Mbits/sec
+        [  5] 60.0-65.0 sec   588 MBytes   987 Mbits/sec
+        [  4] 65.0-70.0 sec   556 MBytes   933 Mbits/sec
+        [  5] 65.0-70.0 sec   595 MBytes   998 Mbits/sec
+        [  4] 70.0-75.0 sec   623 MBytes  1.05 Gbits/sec
+        [  5] 70.0-75.0 sec   587 MBytes   985 Mbits/sec
+        [  5] 75.0-80.0 sec   591 MBytes   992 Mbits/sec
+        [  4] 75.0-80.0 sec   587 MBytes   985 Mbits/sec
+        [  4] 80.0-85.0 sec   586 MBytes   984 Mbits/sec
+        [  5] 80.0-85.0 sec   590 MBytes   990 Mbits/sec
+        [  5] 85.0-90.0 sec   589 MBytes   989 Mbits/sec
+        [  4] 85.0-90.0 sec   591 MBytes   991 Mbits/sec
+        [  5] 90.0-95.0 sec   589 MBytes   988 Mbits/sec
+        [  4] 90.0-95.0 sec   594 MBytes   997 Mbits/sec
+        [  4] 95.0-100.0 sec   580 MBytes   973 Mbits/sec
+        [  5] 95.0-100.0 sec   591 MBytes   992 Mbits/sec
+        [  5] 100.0-105.0 sec   588 MBytes   986 Mbits/sec
+        [  4] 100.0-105.0 sec   599 MBytes  1.01 Gbits/sec
+        [  5] 105.0-110.0 sec   591 MBytes   992 Mbits/sec
+        [  4] 105.0-110.0 sec   590 MBytes   989 Mbits/sec
+        [  5] 110.0-115.0 sec   590 MBytes   989 Mbits/sec
+        [  4] 110.0-115.0 sec   588 MBytes   986 Mbits/sec
+        [  4] 115.0-120.0 sec   589 MBytes   989 Mbits/sec
+        [  5] 115.0-120.0 sec   590 MBytes   990 Mbits/sec
+        [  5]  0.0-120.0 sec  13.9 GBytes   998 Mbits/sec
+        [  5] MSS size 8949 bytes (MTU 8989 bytes, unknown interface)
+        [  4]  0.0-120.0 sec  13.9 GBytes   997 Mbits/sec
+        [  4] MSS size 8949 bytes (MTU 8989 bytes, unknown interface)
+
+
+        [ec2-user@ip-10-0-128-158 ~]$ ping -c 120 -i0.2 -q 10.0.128.88
+        PING 10.0.128.88 (10.0.128.88) 56(84) bytes of data.
+
+        --- 10.0.128.88 ping statistics ---
+        120 packets transmitted, 120 received, 0% packet loss, time 23798ms
+        rtt min/avg/max/mdev = 0.101/0.111/0.152/0.012 ms

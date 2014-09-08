@@ -1,7 +1,7 @@
 import random
 import string
 
-from fabric.api import env, execute
+from fabric.api import env, execute, put
 from fabric.context_managers import cd
 from fabric.contrib.files import upload_template
 from fabric.decorators import roles, runs_once
@@ -13,16 +13,30 @@ env.ec2_region = 'us-west-1'
 env.ec2_instances = {
     'data-nodes': {
         'roles': ['data-node'],
-        'type': 'r3.large',
+        'type': 'r3.2xlarge',
         'ami': 'ami-f0d3d4b5',
         'count': 2,
-        'bid': 0.02,
+        'bid': 0.50,
         'ephemeral_disks': ['/dev/sdb'],
         'assign_public_ip': False,
         'source_dest_check': True,
         'security_groups': ['mysql-cluster'],
         'placement_group': 'mysql-cluster',
         'subnet': 'subnet-cfd3ec89', # Private subnet (i.e., subnet with routing table containing default route to VPN instance)
+    },
+
+    'load-generators': {
+        'roles': ['load-generator'],
+        'type': 'r3.2xlarge',
+        'ami': 'ami-f0d3d4b5',
+        'count': 1,
+        'bid': 0.50,
+        'ephemeral_disks': None,
+        'assign_public_ip': False,
+        'source_dest_check': True,
+        'security_groups': ['mysql-cluster'],
+        'placement_group': 'mysql-cluster',
+        'subnet': 'subnet-cfd3ec89', # Private subnet
     },
 
     'utility-boxes': {
@@ -62,6 +76,10 @@ env.roledefs = {
         abort_if_none=True),
     'data-nodes': get_instances_callable(
         role='data-node',
+        mapper=lambda i: i.private_ip_address,
+        abort_if_none=True),
+    'load-generators': get_instances_callable(
+        role='load-generator',
         mapper=lambda i: i.private_ip_address,
         abort_if_none=True),
     'mgmt-servers': get_instances_callable(
@@ -214,6 +232,9 @@ def configure_yum_repo():
     with cd('/www/repos/rpm'):
         sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-server-gpl-7.3.6-2.el6.x86_64.rpm > MySQL-Cluster-server-gpl-7.3.6-2.el6.x86_64.rpm')
         sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-client-gpl-7.3.6-2.el6.x86_64.rpm > MySQL-Cluster-client-gpl-7.3.6-2.el6.x86_64.rpm')
+        sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-devel-gpl-7.3.6-2.el6.x86_64.rpm > MySQL-Cluster-devel-gpl-7.3.6-2.el6.x86_64.rpm')
+        sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-shared-gpl-7.3.6-2.el6.x86_64.rpm > MySQL-Cluster-shared-gpl-7.3.6-2.el6.x86_64.rpm')
+        sudo('curl --location http://dl.fedoraproject.org/pub/epel/6/x86_64/iperf-2.0.5-11.el6.x86_64.rpm > iperf-2.0.5-11.el6.x86_64.rpm')
         sudo('createrepo .')
     upload_template(
         filename='files/etc/nginx/nginx.conf',
@@ -261,6 +282,17 @@ def install_mysql_cluster_clients():
 def install_mysql_cluster():
     execute(install_servers)
     execute(install_mysql_cluster_clients)
+
+
+@task
+@roles('load-generators')
+def install_load_generators():
+    execute(install_yum_repo_file)
+    sudo('yum -y update')
+    sudo('yum -y install gcc-c++ MySQL-Cluster-devel-gpl MySQL-Cluster-shared-gpl MySQL-Cluster-server-gpl')
+    put('benchmarks', '.')
+    with cd('~/benchmarks/src'):
+        run('make')
 
 
 @roles('mgmt-servers')
@@ -430,3 +462,11 @@ def prepare_mysql_cluster_for_benchmarking():
     execute(configure_mysql_cluster)
     execute(start_mysql_cluster)
     execute(create_schema)
+
+
+@task
+@roles('data-nodes')
+def install_iperf():
+    execute(install_yum_repo_file)
+    sudo('yum -y update')
+    sudo('yum -y install iperf')

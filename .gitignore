@@ -1,1 +1,3 @@
 *.pyc
+ndb-fetch
+ndb-load
