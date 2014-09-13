@@ -13,7 +13,7 @@ env.ec2_region = 'us-west-1'
 env.ec2_instances = {
     'data-nodes': {
         'roles': ['data-node'],
-        'type': 'r3.2xlarge',
+        'type': 'c3.2xlarge',
         'ami': 'ami-f0d3d4b5',
         'count': 2,
         'bid': 0.50,
@@ -27,7 +27,7 @@ env.ec2_instances = {
 
     'load-generators': {
         'roles': ['load-generator'],
-        'type': 'r3.2xlarge',
+        'type': 'c3.2xlarge',
         'ami': 'ami-f0d3d4b5',
         'count': 1,
         'bid': 0.50,
