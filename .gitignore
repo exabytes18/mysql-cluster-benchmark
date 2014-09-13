@@ -1,3 +1,6 @@
 *.pyc
 ndb-fetch
 ndb-load
+
+# STUFF YOU SHOULD IGNORE IN YOUR OWN REPO CONFIG
+.DS_Store

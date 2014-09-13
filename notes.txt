@@ -1,0 +1,420 @@
+do initially tuning with diskless=1... get memory+cpu settings right.. then move on to persistence
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 1000 3000 4 50
+Connected to cluster; creating 4 threads
+
+real	0m40.309s
+user	0m6.272s
+sys	0m2.088s
+
+
+load-gen: 22%
+datanode: 65%
+
+
+
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 1000 3000 1 50
+Connected to cluster; creating 1 threads
+
+real	1m17.347s
+user	0m3.768s
+sys	0m0.268s
+
+
+load-gen: 5%
+datanode: 50%
+
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 1000 3000 8 50
+Connected to cluster; creating 8 threads
+Error in Error in ndb-load.cpp, line: 36, code: 266, msg: Error in ndb-load.cpp, line: Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+Error in ndb-load.cppError in Time-out in NDB, probably caused by deadlock.Error in ndb-load.cppndb-load.cpp, line: 36, code: 36, code: 266ndb-load.cpp, line: , line: , line: 36, code: 266, msg: 
+266, msg: , msg: Time-out in NDB, probably caused by deadlock.
+Error in ndb-load.cpp, line: 36
+real	0m20.548s
+user	0m4.668s
+sys	0m3.596s
+
+
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 1000 3000 2 500
+Connected to cluster; creating 2 threads
+Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+
+real	0m19.536s
+user	0m2.560s
+sys	0m0.988s
+
+
+
+
+
+Ok... datanodes getting saturated?
+set MaxNoOfExecutionThreads=4
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 1000 3000 2 500
+Connected to cluster; creating 2 threads
+
+real	0m21.258s
+user	0m3.044s
+sys	0m0.612s
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 1000 3000 2 500
+Connected to cluster; creating 2 threads
+
+real	0m21.255s
+user	0m3.092s
+sys	0m0.516s
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 1000 3000 4 500
+Connected to cluster; creating 4 threads
+
+real	0m14.262s
+user	0m3.484s
+sys	0m0.680s
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 1000 3000 8 500
+Connected to cluster; creating 8 threads
+
+real	0m12.227s
+user	0m4.180s
+sys	0m0.948s
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 1000 3000 16 500
+Connected to cluster; creating 16 threads
+
+real	0m12.230s
+user	0m4.348s
+sys	0m0.968s
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 1000 3000 8 1000
+Connected to cluster; creating 8 threads
+
+real	0m12.235s
+user	0m3.964s
+sys	0m0.696s
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in Error in ndb-load.cpp, line: 36, code: 266, msg: ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.Time-out in NDB, probably caused by deadlock.
+
+
+real	0m18.550s
+user	0m6.844s
+sys	0m1.620s
+
+
+
+
+
+time for more threads
+set MaxNoOfExecutionThreads=8
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in ndb-load.cpp, line: 36Error in Error in ndb-load.cpp, line: 36, code: 266, msg: ndb-load.cppError in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+Time-out in NDB, probably caused by deadlock.
+, line: 36, code: Error in ndb-load.cpp, line: , code: 266266, msg: Time-out in NDB, probably caused by deadlock.
+
+real	0m26.209s
+user	0m11.740s
+sys	0m2.700s
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+
+real	0m26.259s
+user	0m11.924s
+sys	0m2.856s
+
+
+
+
+set Numa=0
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+
+real	0m25.598s
+user	0m11.680s
+sys	0m2.932s
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in Error in ndb-load.cpp, line: 36, code: 266, msg: ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlockTime-out in NDB, probably caused by deadlock.
+.
+
+real	0m26.556s
+user	0m11.332s
+sys	0m2.676s
+
+
+
+[root@ip-10-0-128-22 ec2-user]# numactl --hardware
+available: 1 nodes (0)
+node 0 cpus: 0 1 2 3 4 5 6 7
+node 0 size: 62499 MB
+node 0 free: 47958 MB
+node distances:
+node   0 
+  0:  10 
+
+
+
+
+realize the 8vCPUs are actually just 4 physical cores with hyperthreading on E5-2670v2 used by r3.2xlarge
+unset Numa=0
+
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+Error in ndb-load.cpp, line: 36Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+, code: 266, msg: Time-out in NDB, probably caused by deadlock
+real	0m27.423s
+user	0m11.476s
+sys	0m2.440s
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+Error in ndb-load.cpp, line: 36, code: Error in ndb-load.cpp, line: 266, msg: Time-out in NDB, probably caused by deadlock.
+36, code: 
+real	0m27.062s
+user	0m11.636s
+sys	0m2.808s
+
+
+mysql> select count(*) from transactions;
++----------+
+| count(*) |
++----------+
+|  8452500 |
++----------+
+1 row in set (0.00 sec)
+
+
+
+
+Note: iftop reports there's roughly 500mbps of traffic between the datanodes, in each direction, while the benchmark is in progress. By comparison, the load-generator has only about 250mbps to one datanode while running. This indicates that we're approaching the limits of the system (where network is the limiting factor). In any case, 8452500/27.062s = 312,000 writes per second.. not bad.
+
+
+
+
+try binding threads to CPUs:
+replace MaxNoOfExecutionThreads=8 with:
+	NoOfFragmentLogParts=8  ## Must be >= number of ldm threads && multiple of 4
+	Threadconfig=main={cpubind=0},ldm={count=6,cpubind=1,2,3,4,5,6},rep={cpubind=7}
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+
+real	0m46.805s
+user	0m17.940s
+sys	0m4.304s
+
+mysql> select count(*) from transactions;
++----------+
+| count(*) |
++----------+
+| 13052500 |
++----------+
+1 row in set (0.00 sec)
+
+
+
+
+slightly lower throughput...
+let's watch cpu usage per core: yum install sysstat
+mpstat -P ALL 1
+notice that core 7 is idle
+core 7 was handling replication... ok, this makes sense.. replication is not referring to intra-cluster communications, but rather inter-cluster (like for geo-replication)... ok, we have a free core to use
+
+how about we try dedicated send and recv threads:
+set Threadconfig=main={cpubind=0},tc={cpubind=1},ldm={count=4,cpubind=2,3,4,5},send={cpubind=6},recv={cpubind=7}
+unset NoOfFragmentLogParts
+
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in Error in ndb-load.cpp, line: 36, code: 266, msg: ndb-load.cppError in ndb-load.cpp, line: 36, code: Time-out in NDB, probably caused by deadlock.
+266, msg: Time-out in NDB, probably caused by deadlock., line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+
+
+real	0m26.223s
+user	0m11.652s
+sys	0m2.844s
+
+
+
+
+Watch mpstat...
+core 0 and core 6 are largely idle
+
+set:
+	Threadconfig=main={cpubind=6},tc={cpubind=1},ldm={count=4,cpubind=2,3,4,5},send={cpubind=6},recv={cpubind=7}
+
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+
+real	0m26.789s
+user	0m11.832s
+sys	0m2.812s
+
+
+
+
+Note: core 0 and core 6 are still idle
+set:
+	NoOfFragmentLogParts=8
+	Threadconfig=ldm={count=6,cpubind=0,1,2,3,4,5},send={cpubind=6},recv={cpubind=7}
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in ndb-load.cpp, line: 36, code: 1217, msg: Out of operation records in local data manager (increase MaxNoOfLocalOperations).
+
+real	0m20.192s
+user	0m7.908s
+sys	0m1.876s
+
+
+
+
+set:
+	MaxNoOfLocalOperations=131072
+
+
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+Error in ndb-load.cpp
+real	0m49.770s
+user	0m17.972s
+sys	0m4.192s
+
+mysql> select count(*) from transactions;
++----------+
+| count(*) |
++----------+
+| 13009500 |
++----------+
+1 row in set (0.00 sec)
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+
+real	0m39.210s
+user	0m17.984s
+sys	0m4.704s
+
+mysql> select count(*) from transactions;
++----------+
+| count(*) |
++----------+
+| 13033000 |
++----------+
+1 row in set (0.00 sec)
+
+
+
+
+The second set of numbers.. cores 2 and 3 were busy whereas they were not so much in previous rounds.
+set:
+	Threadconfig=ldm={count=6,cpubind=0,1,2,3,4,5},tc={count=2,cpubind=6,7},recv={cpubind=7}
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.
+
+real	0m47.730s
+user	0m18.304s
+sys	0m3.900s
+
+
+
+set:
+	MaxNoOfExecutionThreads=7
+
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in Error in ndb-load.cpp, line: 36, code: 266, msg: ndb-load.cpp, line: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.Time-out in NDB, probably caused by deadlock.
+
+*** Error in `./benchmarks/src/ndb-load': double free or corruption (fasttop): 0x0000000001f00420 ***
+======= Backtrace: =========
+/lib64/libc.so.6(+0x7636e)[0x7f37e42e636e]
+/lib64/libc.so.6(+0x770d7)[0x7f37e42e70d7]
+/usr/lib64/libndbclient.so.6.0.0(_ZN12PropertyImplD1Ev+0x15)[0x7f37e4fdd5a5]
+
+real	0m25.470s
+user	0m11.788s
+sys	0m3.312s
+
+mysql> select count(*) from transactions;
++----------+
+| count(*) |
++----------+
+|  8564000 |
++----------+
+1 row in set (0.01 sec)
+
+
+[root@ip-10-0-128-36 ec2-user]# time ./benchmarks/src/ndb-load 10.0.128.183 10000 3000 8 500
+Connected to cluster; creating 8 threads
+Error in Error in ndb-load.cpp, line: ndb-load.cpp, line: 36, code: 266, msg: 36, code: 266, msg: Time-out in NDB, probably caused by deadlock.Time-out in NDB, probably caused by deadlock.
+
+
+real	0m25.829s
+user	0m11.688s
+sys	0m3.012s
+
+
+mysql> select count(*) from transactions;
++----------+
+| count(*) |
++----------+
+|  8540000 |
++----------+
+1 row in set (0.01 sec)
+
+
+
+
+A single client seems to be enough to saturate the cluster, so probably not necessary to use multiple connections or spread out to multiple machines yet. Though, we should handle the "time-out in ndb" with some retry logic.
