@@ -460,8 +460,6 @@ mysql> select count(*) from transactions;
 
 AHA!! We can now insert 30,000,000 records (with a little help from some retry logic).
 
-But retry logic is still kicking in..
-
 set:
 	DiskCheckpointSpeed=3G
 
@@ -593,3 +591,132 @@ mysql> select * from ndbinfo.memoryusage;
 
 
 This comes to 295,000 inserts / second. Each insert is synchronously replicated between the datanodes. At peak, datanode1 was sending over 650mbps of traffic to datanode2. Record size = 75 bytes / row.
+
+
+
+
+Ok, let's add an index. Luckily, this is an online operation (queries will continue to be processed during the index creation.. but it won't be until after the operation is done that the query planner will begin using the new index).
+
+
+
+mysql> alter table transactions add index account_txn_timestamps (account_id, timestamp);
+Query OK, 0 rows affected (20.22 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> select * from ndbinfo.memoryusage;
++---------+---------------------+------------+------------+------------+-------------+
+| node_id | memory_type         | used       | used_pages | total      | total_pages |
++---------+---------------------+------------+------------+------------+-------------+
+|       2 | Data memory         | 2243133440 |      68455 | 8589934592 |      262144 |
+|       2 | Index memory        |  445882368 |      54429 | 2149580800 |      262400 |
+|       2 | Long message buffer |    1310720 |       5120 |   67108864 |      262144 |
+|       3 | Data memory         | 2243133440 |      68455 | 8589934592 |      262144 |
+|       3 | Index memory        |  445898752 |      54431 | 2149580800 |      262400 |
+|       3 | Long message buffer |    1310720 |       5120 |   67108864 |      262144 |
++---------+---------------------+------------+------------+------------+-------------+
+6 rows in set (0.03 sec)
+
+
+After adding the index on (account_id, timestamp), the record size = 89 bytes / row.
+
+
+
+
+mysql> select * from transactions where account_id = 1 order by timestamp desc limit 5;
++------------+--------+------------+--------+---------+
+| account_id | txn_id | timestamp  | posted | amount  |
++------------+--------+------------+--------+---------+
+|          1 |   2672 | 2147111477 |      0 | 152.882 |
+|          1 |    133 | 2146690120 |      1 | 50.4861 |
+|          1 |   2301 | 2146587512 |      1 | 157.859 |
+|          1 |   1888 | 2146345109 |      0 | 114.637 |
+|          1 |   1815 | 2144436447 |      1 | 163.317 |
++------------+--------+------------+--------+---------+
+5 rows in set (0.00 sec)
+
+mysql> explain select * from transactions where account_id = 1 order by timestamp desc limit 5;
++----+-------------+--------------+------+--------------------------------+------------------------+---------+-------+------+-------------+
+| id | select_type | table        | type | possible_keys                  | key                    | key_len | ref   | rows | Extra       |
++----+-------------+--------------+------+--------------------------------+------------------------+---------+-------+------+-------------+
+|  1 | SIMPLE      | transactions | ref  | PRIMARY,account_txn_timestamps | account_txn_timestamps | 4       | const | 5477 | Using where |
++----+-------------+--------------+------+--------------------------------+------------------------+---------+-------+------+-------------+
+1 row in set (0.00 sec)
+
+
+
+Indeed, the query planner is using the new index to good effect.
+
+And to test insert rate into the table with the extra index overhead:
+
+
+
+
+[ec2-user@loadgen src]$ time ./ndb-load 10.0.128.184 1 10000 3000 8
+Connected to cluster; creating 8 threads
+Retrying in 500ms for accountID = 1961!
+Retrying in 500ms for accountID = 4462!
+Retrying in 500ms for accountID = 6971!
+Retrying in 500ms for accountID = 720!
+Retrying in 500ms for accountID = 5729!
+Retrying in 500ms for accountID = 9454!
+Retrying in 500ms for accountID = 3212!
+Retrying in 500ms for accountID = 8221!
+Retrying in 500ms for accountID = 6971!
+Retrying in 500ms for accountID = 3212!
+Retrying in 500ms for accountID = 1961!
+Retrying in 500ms for accountID = 5729!
+Retrying in 500ms for accountID = 4462!
+Retrying in 500ms for accountID = 720!
+Retrying in 500ms for accountID = 9454!
+Retrying in 500ms for accountID = 8221!
+Retrying in 500ms for accountID = 4462!
+Retrying in 500ms for accountID = 6971!
+Retrying in 500ms for accountID = 5729!
+Retrying in 500ms for accountID = 9454!
+Retrying in 500ms for accountID = 3212!
+Retrying in 500ms for accountID = 1961!
+Retrying in 500ms for accountID = 720!
+Retrying in 500ms for accountID = 8221!
+Retrying in 500ms for accountID = 8552!
+Retrying in 500ms for accountID = 4798!
+Retrying in 500ms for accountID = 2281!
+Retrying in 500ms for accountID = 6049!
+Retrying in 500ms for accountID = 9748!
+Retrying in 500ms for accountID = 7290!
+Retrying in 500ms for accountID = 3532!
+Retrying in 500ms for accountID = 1048!
+Retrying in 500ms for accountID = 9748!
+Retrying in 500ms for accountID = 8552!
+Retrying in 500ms for accountID = 2281!
+Retrying in 500ms for accountID = 4798!
+Retrying in 500ms for accountID = 7290!
+Retrying in 500ms for accountID = 6049!
+Retrying in 500ms for accountID = 3532!
+Retrying in 500ms for accountID = 1048!
+Retrying in 500ms for accountID = 8552!
+Retrying in 500ms for accountID = 9748!
+Retrying in 500ms for accountID = 7290!
+Retrying in 500ms for accountID = 6049!
+Retrying in 500ms for accountID = 2281!
+Retrying in 500ms for accountID = 3532!
+Retrying in 500ms for accountID = 4798!
+Retrying in 500ms for accountID = 1048!
+Retrying in 500ms for accountID = 9748!
+Retrying in 500ms for accountID = 8552!
+Retrying in 500ms for accountID = 7290!
+Retrying in 500ms for accountID = 6049!
+Retrying in 500ms for accountID = 3532!
+Retrying in 500ms for accountID = 2281!
+Retrying in 500ms for accountID = 4798!
+Retrying in 500ms for accountID = 1048!
+Retrying in 500ms for accountID = 9748!
+Retrying in 500ms for accountID = 7290!
+Retrying in 500ms for accountID = 3532!
+Retrying in 500ms for accountID = 8552!
+Retrying in 500ms for accountID = 6049!
+Retrying in 500ms for accountID = 2281!
+Retrying in 500ms for accountID = 4798!
+
+real	1m57.386s
+user	0m40.656s
+sys	0m4.148s
