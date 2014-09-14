@@ -418,3 +418,178 @@ mysql> select count(*) from transactions;
 
 
 A single client seems to be enough to saturate the cluster, so probably not necessary to use multiple connections or spread out to multiple machines yet. Though, we should handle the "time-out in ndb" with some retry logic.
+
+
+
+
+
+Retry logic is dubious for the write-side of things since retrying transactions is has symantic-difficulties. Anyway, from staring at logs for awhile, it's strange to see datanodes doing "Local checkpoints (LCP)" while operating in diskless mode. Ok. And there's definitely a correlation between when the load-generator starts seeing timeouts and when nodes start doing local checkpoints... but local-checkpoints don't always cause timeouts. What's going on?
+
+I notice that when there are timeouts, as soon as one local-checkpoint is done, another is started immediately. Ok. That seems to hint that there's a backlog in processing local-checkpoints. Are we doomed if these supposed no-op disk operations are actually taking significant amount of time?? What happens when we actually write to disk??
+
+Reading configuration file documentation is surprisingly fun to me.. ok, let's read dev.mysql.com for awhile. "If the node is running in diskless mode, these parameters can be set to their minimum values without penalty due to the fact that disk writes are “faked” by the NDB storage engine's file system abstraction layer." Ok, that's interesting.
+
+Oh wait.. I remember seeing a DiskCheckpointSpeed parameter. So the call chain might look something like:
+	localCheckpoint(throttle(disk(fs, isDiskless))).
+
+Let's test out increasing the DiskCheckpointSpeed parameter. Let's set it to 2GB/s. If we're just going to throw away the data... no sense in throttling how fast we can fake writing to disk...
+
+set:
+	DiskCheckpointSpeed=2G
+
+
+
+
+[ec2-user@loadgen src]$ time ./ndb-load 10.0.128.184 1 10000 3000 1
+Connected to cluster; creating 1 threads
+
+real	3m33.481s
+user	0m23.488s
+sys	0m2.472s
+
+mysql> select count(*) from transactions;
++----------+
+| count(*) |
++----------+
+| 30000000 |
++----------+
+1 row in set (0.00 sec)
+
+
+
+
+AHA!! We can now insert 30,000,000 records (with a little help from some retry logic).
+
+But retry logic is still kicking in..
+
+set:
+	DiskCheckpointSpeed=3G
+
+
+
+
+[ec2-user@loadgen src]$ time ./ndb-load 10.0.128.184 1 10000 3000 8
+Connected to cluster; creating 8 threads
+Retrying in 500ms for accountID = 8221!
+Retrying in 500ms for accountID = 9435!
+Retrying in 500ms for accountID = 4466!
+Retrying in 500ms for accountID = 6948!
+Retrying in 500ms for accountID = 3222!
+Retrying in 500ms for accountID = 1982!
+Retrying in 500ms for accountID = 5724!
+Retrying in 500ms for accountID = 733!
+Retrying in 500ms for accountID = 8221!
+Retrying in 500ms for accountID = 9435!
+Retrying in 500ms for accountID = 3222!
+Retrying in 500ms for accountID = 4466!
+Retrying in 500ms for accountID = 6948!
+Retrying in 500ms for accountID = 1982!
+Retrying in 500ms for accountID = 5724!
+Retrying in 500ms for accountID = 733!
+Retrying in 500ms for accountID = 8221!
+Retrying in 500ms for accountID = 9435!
+Retrying in 500ms for accountID = 3222!
+Retrying in 500ms for accountID = 6948!
+Retrying in 500ms for accountID = 4466!
+Retrying in 500ms for accountID = 5724!
+Retrying in 500ms for accountID = 1982!
+Retrying in 500ms for accountID = 733!
+Retrying in 500ms for accountID = 8221!
+Retrying in 500ms for accountID = 9435!
+Retrying in 500ms for accountID = 3222!
+Retrying in 500ms for accountID = 6948!
+Retrying in 500ms for accountID = 4466!
+Retrying in 500ms for accountID = 1982!
+Retrying in 500ms for accountID = 5724!
+Retrying in 500ms for accountID = 733!
+Retrying in 500ms for accountID = 8221!
+Retrying in 500ms for accountID = 3222!
+Retrying in 500ms for accountID = 9435!
+Retrying in 500ms for accountID = 4466!
+Retrying in 500ms for accountID = 5724!
+Retrying in 500ms for accountID = 6948!
+Retrying in 500ms for accountID = 1982!
+Retrying in 500ms for accountID = 733!
+Retrying in 500ms for accountID = 8221!
+Retrying in 500ms for accountID = 4466!
+Retrying in 500ms for accountID = 3222!
+Retrying in 500ms for accountID = 9435!
+Retrying in 500ms for accountID = 5724!
+Retrying in 500ms for accountID = 6948!
+Retrying in 500ms for accountID = 1982!
+Retrying in 500ms for accountID = 733!
+Retrying in 500ms for accountID = 8221!
+Retrying in 500ms for accountID = 4466!
+Retrying in 500ms for accountID = 3222!
+Retrying in 500ms for accountID = 5724!
+Retrying in 500ms for accountID = 9435!
+Retrying in 500ms for accountID = 6948!
+Retrying in 500ms for accountID = 1982!
+Retrying in 500ms for accountID = 9904!
+Retrying in 500ms for accountID = 4947!
+Retrying in 500ms for accountID = 7409!
+Retrying in 500ms for accountID = 8696!
+Retrying in 500ms for accountID = 3698!
+Retrying in 500ms for accountID = 1197!
+Retrying in 500ms for accountID = 2444!
+Retrying in 500ms for accountID = 6200!
+Retrying in 500ms for accountID = 9904!
+Retrying in 500ms for accountID = 3698!
+Retrying in 500ms for accountID = 6200!
+Retrying in 500ms for accountID = 8696!
+Retrying in 500ms for accountID = 4947!
+Retrying in 500ms for accountID = 7409!
+Retrying in 500ms for accountID = 1197!
+Retrying in 500ms for accountID = 2444!
+Retrying in 500ms for accountID = 9904!
+Retrying in 500ms for accountID = 7409!
+Retrying in 500ms for accountID = 8696!
+Retrying in 500ms for accountID = 3698!
+Retrying in 500ms for accountID = 6200!
+Retrying in 500ms for accountID = 4947!
+Retrying in 500ms for accountID = 1197!
+Retrying in 500ms for accountID = 2444!
+Retrying in 500ms for accountID = 8696!
+Retrying in 500ms for accountID = 3698!
+Retrying in 500ms for accountID = 9904!
+Retrying in 500ms for accountID = 7409!
+Retrying in 500ms for accountID = 2444!
+Retrying in 500ms for accountID = 6200!
+Retrying in 500ms for accountID = 4947!
+Retrying in 500ms for accountID = 1197!
+Retrying in 500ms for accountID = 8696!
+Retrying in 500ms for accountID = 3698!
+Retrying in 500ms for accountID = 9904!
+Retrying in 500ms for accountID = 4947!
+Retrying in 500ms for accountID = 7409!
+Retrying in 500ms for accountID = 6200!
+Retrying in 500ms for accountID = 2444!
+Retrying in 500ms for accountID = 1197!
+
+real	1m41.373s
+user	0m45.928s
+sys	0m5.696s
+
+mysql> select count(*) from transactions;
++----------+
+| count(*) |
++----------+
+| 30000000 |
++----------+
+1 row in set (0.00 sec)
+
+mysql> select * from ndbinfo.memoryusage;
++---------+---------------------+------------+------------+------------+-------------+
+| node_id | memory_type         | used       | used_pages | total      | total_pages |
++---------+---------------------+------------+------------+------------+-------------+
+|       2 | Data memory         | 1806467072 |      55129 | 8589934592 |      262144 |
+|       2 | Index memory        |  445915136 |      54433 | 2149580800 |      262400 |
+|       2 | Long message buffer |    1441792 |       5632 |   67108864 |      262144 |
+|       3 | Data memory         | 1804697600 |      55075 | 8589934592 |      262144 |
+|       3 | Index memory        |  445915136 |      54433 | 2149580800 |      262400 |
+|       3 | Long message buffer |    1441792 |       5632 |   67108864 |      262144 |
++---------+---------------------+------------+------------+------------+-------------+
+6 rows in set (0.03 sec)
+
+
+This comes to 295,000 inserts / second. Each insert is synchronously replicated between the datanodes. At peak, datanode1 was sending over 650mbps of traffic to datanode2. Record size = 75 bytes / row.

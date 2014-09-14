@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <thread>
+#include <unistd.h>
 
 #define DATABASE_NAME "benchmarks"
 #define TABLE_NAME "transactions"
@@ -14,7 +15,33 @@
 #define BLOCK_LOW(id,p,n) ((id)*(n)/(p))
 
 
-static void insert(Ndb_cluster_connection* cluster_connection, int startAccountID, int endAccountID, int numTxnPerAccount, int numTxnPerBatch) {
+static bool createAccount(Ndb* ndb, const NdbDictionary::Table* table, int accountID, int numTxn) {
+	NdbTransaction* batch = ndb->startTransaction();
+	for (int txnID = 0; txnID < numTxn; txnID++) {
+		NdbOperation* op = batch->getNdbOperation(table);
+		if (op == NULL) {
+			throw batch->getNdbError();
+		}
+
+		op->insertTuple();
+		op->equal("account_id", accountID);
+		op->equal("txn_id", txnID);
+		op->setValue("timestamp", rand());
+		op->setValue("posted", rand() % 2 == 0);
+		op->setValue("amount", 200 * (float)rand() / RAND_MAX);
+	}
+
+	int result = batch->execute(NdbTransaction::Commit);
+	batch->close();
+
+	if (result == -1) {
+		throw batch->getNdbError();
+	} else {
+		return true;
+	}
+}
+
+static void insert(Ndb_cluster_connection* cluster_connection, int startAccountID, int endAccountID, int numTxnPerAccount) {
 	Ndb ndb(cluster_connection, DATABASE_NAME);
 	if (ndb.init()) {
 		APIERROR(ndb.getNdbError());
@@ -26,53 +53,25 @@ static void insert(Ndb_cluster_connection* cluster_connection, int startAccountI
 		APIERROR(dict->getNdbError());
 	}
 
-	int txnSize = 0;
-	NdbTransaction* batch = NULL;
 	for (int accountID = startAccountID; accountID < endAccountID; accountID++) {
-		for (int txnID = 0; txnID < numTxnPerAccount; txnID++) {
-			if (txnSize == numTxnPerBatch || batch == NULL) {
-				if (batch != NULL) {
-					if (batch->execute(NdbTransaction::Commit) == -1) {
-						APIERROR(batch->getNdbError());
-						return;
-					}
-					batch->close();
-				} 
-				
-				txnSize = 0;
-				batch = ndb.startTransaction();
-				if (batch == NULL) {
-					APIERROR(ndb.getNdbError());
-					return;
+		for (int retries = 20; retries >= 0; retries--) {
+			try {
+				createAccount(&ndb, table, accountID, numTxnPerAccount);
+				break;
+			} catch (NdbError& error) {
+				if (error.status == NdbError::TemporaryError && retries > 0) {
+					std::cerr << "Retrying in 500ms for accountID = " <<  accountID << "!" << std::endl;
+					usleep(500000);
+					continue;
 				}
-			}
-
-			NdbOperation* op = batch->getNdbOperation(table);
-			if (op == NULL) {
-				APIERROR(batch->getNdbError());
+				APIERROR(error);
 				return;
 			}
-			
-			op->insertTuple();
-			op->equal("account_id", accountID);
-			op->equal("txn_id", txnID);
-			op->setValue("timestamp", rand());
-			op->setValue("posted", rand() % 2 == 0);
-			op->setValue("amount", 200 * (float)rand() / RAND_MAX);
-			txnSize++;
 		}
-	}
-
-	if (txnSize > 0) {
-		if (batch->execute(NdbTransaction::Commit) == -1) {
-			APIERROR(batch->getNdbError());
-			return;
-		}
-		batch->close();
 	}
 }
 
-static void run(const char* connectionString, int numAccounts, int numTxnPerAccount, int numThreads, int numTxnPerBatch) {
+static void run(const char* connectionString, int startingAccountID, int numAccounts, int numTxnPerAccount, int numThreads) {
 	Ndb_cluster_connection cluster_connection(connectionString);
 	if (cluster_connection.connect(4, 5, 1)) {
 		std::cerr << "Unable to connect to cluster management server" << std::endl;
@@ -86,10 +85,9 @@ static void run(const char* connectionString, int numAccounts, int numTxnPerAcco
 	std::cout << "Connected to cluster; creating " << numThreads << " threads" << std::endl;
 	std::thread* threads = new std::thread[numThreads];
 	for (int thread = 0; thread < numThreads; thread++) {
-		// Offset by 1 so accountIDs start at 1, rather than 0.
-		int startAccountID = BLOCK_LOW(thread, numThreads, numAccounts) + 1;
-		int endAccountID = BLOCK_LOW(thread + 1, numThreads, numAccounts) + 1;
-		threads[thread] = std::thread(insert, &cluster_connection, startAccountID, endAccountID, numTxnPerAccount, numTxnPerBatch);
+		int startAccountID = BLOCK_LOW(thread, numThreads, numAccounts) + startingAccountID;
+		int endAccountID = BLOCK_LOW(thread + 1, numThreads, numAccounts) + startingAccountID;
+		threads[thread] = std::thread(insert, &cluster_connection, startAccountID, endAccountID, numTxnPerAccount);
 	}
 	for (int thread = 0; thread < numThreads; thread++) {
 		threads[thread].join();
@@ -100,74 +98,74 @@ static void run(const char* connectionString, int numAccounts, int numTxnPerAcco
 
 int main(int argc, char** argv) {
 	if (argc != 6) {
-		std::cerr << "usage: " << argv[0] << " connectionString numAccounts numTxnPerAccount numThreads numTxnPerBatch" << std::endl;
+		std::cerr << "usage: " << argv[0] << " connectionString startingAccountID numAccounts numTxnPerAccount numThreads" << std::endl;
 		exit(1);
 	}
 
 	char* connectionString = argv[1];
 
-	int numAccounts;
+	int startingAccountID;
 	try {
-		numAccounts = std::stoi(argv[2]);
+		startingAccountID = std::stoi(argv[2]);
 	} catch (std::invalid_argument e) {
-		std::cerr << "Invalid numAccounts: '" << argv[2] << "'" << std::endl;
+		std::cerr << "Invalid startingAccountID: '" << argv[2] << "'" << std::endl;
 		exit(1);
 	} catch (std::out_of_range e) {
-		std::cerr << "Invalid numAccounts: '" << argv[2] << "'" << std::endl;
+		std::cerr << "Invalid startingAccountID: '" << argv[2] << "'" << std::endl;
+		exit(1);
+	}
+	if(startingAccountID < 1) {
+		std::cerr << "Invalid startingAccountID: '" << argv[2] << "'; must be positive" << std::endl;
+		exit(1);
+	}
+
+	int numAccounts;
+	try {
+		numAccounts = std::stoi(argv[3]);
+	} catch (std::invalid_argument e) {
+		std::cerr << "Invalid numAccounts: '" << argv[3] << "'" << std::endl;
+		exit(1);
+	} catch (std::out_of_range e) {
+		std::cerr << "Invalid numAccounts: '" << argv[3] << "'" << std::endl;
 		exit(1);
 	}
 	if(numAccounts < 1) {
-		std::cerr << "Invalid numAccounts: '" << argv[2] << "'; must be positive" << std::endl;
+		std::cerr << "Invalid numAccounts: '" << argv[3] << "'; must be positive" << std::endl;
 		exit(1);
 	}
 
 	int numTxnPerAccount;
 	try {
-		numTxnPerAccount = std::stoi(argv[3]);
+		numTxnPerAccount = std::stoi(argv[4]);
 	} catch(std::invalid_argument e) {
-		std::cerr << "Invalid numTxnPerAccount: '" << argv[3] << "'" << std::endl;
+		std::cerr << "Invalid numTxnPerAccount: '" << argv[4] << "'" << std::endl;
 		exit(1);
 	} catch (std::out_of_range e) {
-		std::cerr << "Invalid numTxnPerAccount: '" << argv[3] << "'" << std::endl;
+		std::cerr << "Invalid numTxnPerAccount: '" << argv[4] << "'" << std::endl;
 		exit(1);
 	}
 	if(numTxnPerAccount < 1) {
-		std::cerr << "Invalid numTxnPerAccount: '" << argv[3] << "'; must be positive" << std::endl;
+		std::cerr << "Invalid numTxnPerAccount: '" << argv[4] << "'; must be positive" << std::endl;
 		exit(1);
 	}
 
 	int numThreads;
 	try {
-		numThreads = std::stoi(argv[4]);
+		numThreads = std::stoi(argv[5]);
 	} catch(std::invalid_argument e) {
-		std::cerr << "Invalid numThreads: '" << argv[4] << "'" << std::endl;
+		std::cerr << "Invalid numThreads: '" << argv[5] << "'" << std::endl;
 		exit(1);
 	} catch (std::out_of_range e) {
-		std::cerr << "Invalid numThreads: '" << argv[4] << "'" << std::endl;
+		std::cerr << "Invalid numThreads: '" << argv[5] << "'" << std::endl;
 		exit(1);
 	}
 	if(numThreads < 1) {
-		std::cerr << "Invalid numThreads: '" << argv[4] << "'; must be positive" << std::endl;
-		exit(1);
-	}
-
-	int numTxnPerBatch;
-	try {
-		numTxnPerBatch = std::stoi(argv[5]);
-	} catch(std::invalid_argument e) {
-		std::cerr << "Invalid numTxnPerBatch: '" << argv[5] << "'" << std::endl;
-		exit(1);
-	} catch (std::out_of_range e) {
-		std::cerr << "Invalid numTxnPerBatch: '" << argv[5] << "'" << std::endl;
-		exit(1);
-	}
-	if(numTxnPerBatch < 1) {
-		std::cerr << "Invalid numTxnPerBatch: '" << argv[5] << "'; must be positive" << std::endl;
+		std::cerr << "Invalid numThreads: '" << argv[5] << "'; must be positive" << std::endl;
 		exit(1);
 	}
 
 	ndb_init();
-	run(connectionString, numAccounts, numTxnPerAccount, numThreads, numTxnPerBatch);
+	run(connectionString, startingAccountID, numAccounts, numTxnPerAccount, numThreads);
 	ndb_end(0);
 	return 0;
 }
