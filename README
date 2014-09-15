@@ -110,7 +110,7 @@ Setup load generators:
     fab install_load_generators
 
 
-Sync configs and restart all nodes before benchmarking:
+Sync configs, clear old data, and restart all nodes before benchmarking:
     fab prepare_mysql_cluster_for_benchmarking
 
 
