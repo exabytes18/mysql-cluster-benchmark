@@ -163,6 +163,15 @@ MySQL Cluster on OSX:
         ./benchmarks/src/ndb-load
 
 
+ClusterJ performance:
+    Unscientific benchmarks show that ClusterJ is about 3x slower than directly using ndbapi via C++. It seems that ClusterJ creates a lot of garbage; the JVM initiates garbage collections very frequently. But even so, best case query times are still 2x slower than using ndbapi directly.
+
+    Single threaded querying of 1 account with 3000 records (all records returned):
+                    Average query time      Network Utilization
+        ndbapi      5.9345ms                40MB/s
+        ClusterJ    17.041ms                12MB/s
+
+
 Interesting notes about MySQL Cluster:
     "The memory space defined by DataMemory is also used to store ordered
     indexes, which use about 10 bytes per record. Each table row is represented

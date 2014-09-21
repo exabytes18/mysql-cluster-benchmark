@@ -121,7 +121,7 @@ static void run(const char* connectionString, int accountID) {
 		APIERROR(dict->getNdbError());
 	}
 
-	const int n = 100;
+	const int n = 10000;
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int i = 0; i < n; i++) {
 		getRows(&ndb, index, accountID);
@@ -136,7 +136,7 @@ static void run(const char* connectionString, int accountID) {
 
 int main(int argc, char** argv) {
 	if (argc != 3) {
-		std::cerr << "usage: " << argv[0] << "connectionString accountID" << std::endl;
+		std::cerr << "usage: " << argv[0] << " connectionString accountID" << std::endl;
 		exit(1);
 	}
 
