@@ -1,0 +1,27 @@
+Requirements:
+	Need to calculate:
+		for benchmarkType in (wholeHistory, singleTxn, singleTxnMiss50, singleTxnMiss75, singleTxnMiss90)
+			qps (1 second granularity)
+			0th percentile (global)
+			50th percentile (global)
+			75th percentile (global)
+			90th percentile (global)
+			95th percentile (global)
+			99th percentile (global)
+			99.9th percentile (global)
+			100th percentile (global)
+	handle up to 2,000,000 measurements/second/node
+	handle up to 4 nodes
+
+
+
+Tracker();
+SubTracker Tracker.sub();
+SubTracker.record(long timeInMicros);
+SubTracker.finished();
+
+
+SubTracker records all measurements in memory. Whenever there's a new second or finish() is called, the SubTracker atomically switches to a new measurements buffer and the old buffer is put into a single queue managed by Tracker object. The tracker has a single thread which consumes the buffers from the queue and flushes them to the appropriate files on disk (one file per second).
+
+Once the benchmark is complete, copy all the files to a single node. The node should then find all the files of the same second, read the files into memory, sort the measurements, compute the percentiles, then append the results to a single file; repeat for all seconds.
+
