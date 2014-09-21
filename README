@@ -126,13 +126,41 @@ Utils:
     fab list_instances
 
 
-Install MySQL Cluster on OSX:
+MySQL Cluster on OSX:
     The MySQL Cluster download page has a dmg which contains all the necessary
     binaries, libraries, and header files. This worked surprisingly well for
     me on OSX 10.9.4.
 
     Header files (using version 7.3.6):
         /usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/include/storage/ndb/ndbapi
+
+    Run management node on mac:
+        /usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/bin/ndb_mgmd -f /etc/mysql/config.ini --initial --configdir=/etc/mysql
+
+    Run datanode:
+        /usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/bin/ndbmtd -c localhost:1186
+
+    Setup mysqld:
+        /usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/scripts/mysql_install_db --no-defaults --datadir=/mysql/mysqld_data/ --basedir=/usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64
+
+    Run mysqld:
+        /usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/bin/mysqld --defaults-file=/etc/mysql/my.cnf --user=root &
+
+    Connect to mysqld:
+        /usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/bin/mysql -h 127.0.0.1 -u root
+
+    Stop mysqld:
+        /usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/bin/mysqladmin -u root -h 127.0.0.1 shutdown 
+
+    List out all nodes in the mysql cluster (note: clients count against 255 node limit):
+        /usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/bin/ndb_mgm -e show
+
+    Compile ndb-load:
+        g++ -O3 -std=c++11 -I/usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/include/storage/ndb -I/usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/include/storage/ndb/ndbapi -L/usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/lib -lmysqlclient_r -lpthread -lm -ldl -lndbclient benchmarks/src/ndb-load.cpp -o benchmarks/src/ndb-load
+
+    Run ndb-load:
+        export DYLD_LIBRARY_PATH=/usr/local/mysql-cluster-gpl-7.3.6-osx10.7-x86_64/lib
+        ./benchmarks/src/ndb-load
 
 
 Interesting notes about MySQL Cluster:
