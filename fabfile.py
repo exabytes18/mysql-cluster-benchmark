@@ -13,8 +13,8 @@ env.ec2_region = 'us-west-1'
 env.ec2_instances = {
     'data-nodes': {
         'roles': ['data-node'],
-        'type': 'c3.2xlarge',
-        'ami': 'ami-f0d3d4b5',
+        'type': 'r3.2xlarge',
+        'ami': 'ami-4b6f650e',
         'count': 2,
         'bid': 0.50,
         'ephemeral_disks': ['/dev/sdb'],
@@ -27,8 +27,8 @@ env.ec2_instances = {
 
     'load-generators': {
         'roles': ['load-generator'],
-        'type': 'c3.2xlarge',
-        'ami': 'ami-f0d3d4b5',
+        'type': 'r3.2xlarge',
+        'ami': 'ami-4b6f650e',
         'count': 1,
         'bid': 0.50,
         'ephemeral_disks': None,
@@ -42,7 +42,7 @@ env.ec2_instances = {
     'utility-boxes': {
         'roles': ['mgmt', 'mysqld'],
         'type': 'm3.medium',
-        'ami': 'ami-f0d3d4b5',
+        'ami': 'ami-4b6f650e',
         'count': 1,
         'bid': 0.02,
         'ephemeral_disks': ['/dev/sdb'],
@@ -56,7 +56,7 @@ env.ec2_instances = {
     'vpn': {
         'roles': ['vpn', 'yum-repo'],
         'type': 'm3.medium',
-        'ami': 'ami-f0d3d4b5',
+        'ami': 'ami-4b6f650e',
         'count': 1,
         'bid': 0.02,
         'ephemeral_disks': None,
