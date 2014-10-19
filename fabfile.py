@@ -461,6 +461,12 @@ def prepare_mysql_cluster_for_benchmarking():
     execute(nuke_mysql_cluster)
     execute(configure_mysql_cluster)
     execute(start_mysql_cluster)
+
+    # Wait a few seconds for the cluster to fully start. Particularly, the
+    # datanodes need to initialize their log files (r3.2xlarge does about
+    # 160MB/s writing these files files).
+    time.sleep(30)
+
     execute(create_schema)
 
 
