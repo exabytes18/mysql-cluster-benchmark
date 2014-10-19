@@ -1,9 +1,9 @@
-inserting data to 2-node cluster (r3.2xlarge, running 7.3.7):
+2-node cluster (r3.2xlarge, running 7.3.7):
 	./ndb-load 10.0.128.84 1 200000 3000 4
 	rows: 600000000
 	time: 2378.705s
 
-	single node status:
+	single node stats:
 		data: 36142809088
 		index: 8903196672
 		disk: 131191308288
@@ -15,12 +15,12 @@ inserting data to 2-node cluster (r3.2xlarge, running 7.3.7):
 	restart time (no load): 47m0s
 
 
-inserting data to 2-node cluster (r3.2xlarge, running 7.4.1):
+2-node cluster (r3.2xlarge, running 7.4.1):
 	./ndb-load 10.0.128.84 1 200000 3000 4
 	rows: 600000000
 	time: 2891.231s
 
-	single node status:
+	single node stats:
 		data: 36229152768
 		index: 8903065600
 		disk: 131193344000
