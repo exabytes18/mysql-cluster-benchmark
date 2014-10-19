@@ -230,10 +230,10 @@ def configure_yum_repo():
     sudo('yum -y install nginx createrepo')
     sudo('mkdir -p /www/repos/rpm')
     with cd('/www/repos/rpm'):
-        sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-server-gpl-7.3.7-1.el6.x86_64.rpm > MySQL-Cluster-server-gpl-7.3.7-1.el6.x86_64.rpm')
-        sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-client-gpl-7.3.7-1.el6.x86_64.rpm > MySQL-Cluster-client-gpl-7.3.7-1.el6.x86_64.rpm')
-        sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-devel-gpl-7.3.7-1.el6.x86_64.rpm > MySQL-Cluster-devel-gpl-7.3.7-1.el6.x86_64.rpm')
-        sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-shared-gpl-7.3.7-1.el6.x86_64.rpm > MySQL-Cluster-shared-gpl-7.3.7-1.el6.x86_64.rpm')
+        sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-server-gpl-7.4.1-1.el6.x86_64.rpm > MySQL-Cluster-server-gpl-7.4.1-1.el6.x86_64.rpm')
+        sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-client-gpl-7.4.1-1.el6.x86_64.rpm > MySQL-Cluster-client-gpl-7.4.1-1.el6.x86_64.rpm')
+        sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-devel-gpl-7.4.1-1.el6.x86_64.rpm > MySQL-Cluster-devel-gpl-7.4.1-1.el6.x86_64.rpm')
+        sudo('curl --location http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.3/MySQL-Cluster-shared-gpl-7.4.1-1.el6.x86_64.rpm > MySQL-Cluster-shared-gpl-7.4.1-1.el6.x86_64.rpm')
         sudo('curl --location http://dl.fedoraproject.org/pub/epel/6/x86_64/iperf-2.0.5-11.el6.x86_64.rpm > iperf-2.0.5-11.el6.x86_64.rpm')
         sudo('createrepo .')
     upload_template(
