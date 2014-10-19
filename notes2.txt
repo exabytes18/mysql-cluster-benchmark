@@ -30,3 +30,5 @@ inserting data to 2-node cluster (r3.2xlarge, running 7.4.1):
 	disk usage factor: 2.91x data+index memory
 
 	restart time (no load): 39m55s
+
+	avg time to query one user (3000 records): 7.6ms
