@@ -314,7 +314,6 @@ def get_instance_by_ip(ip):
     return None
 
 
-
 @task
 @runs_once
 def spot_prices():
@@ -330,20 +329,17 @@ def spot_prices():
             type_az[sph.availability_zone] = sph
 
     def _inst_cmp(a, b):
-        a_cls, a_dot, a_size = a[0].partition('.')
-        b_cls, b_dot, b_size = b[0].partition('.')
+        am = re.match(r'(.+?)(\d*)\.(\d*)(.+)', a[0])
+        bm = re.match(r'(.+?)(\d*)\.(\d*)(.+)', b[0])
 
-        a_cat, a_gen = (a_cls[0], int(a_cls[1]))
-        b_cat, b_gen = (b_cls[0], int(b_cls[1]))
-
-        a_parsed_size = re.match(r'(\d*)(.+)', a_size)
-        b_parsed_size = re.match(r'(\d*)(.+)', b_size)
+        a_cat, a_gen = (am.group(1), int(am.group(2)))
+        b_cat, b_gen = (bm.group(1), int(bm.group(2)))
 
         ranks = ['micro', 'small', 'medium', 'large', 'xlarge']
-        a_rank = ranks.index(a_parsed_size.group(2))
-        b_rank = ranks.index(b_parsed_size.group(2))
-        a_sub_rank = int(a_parsed_size.group(1) or 0)
-        b_sub_rank = int(b_parsed_size.group(1) or 0)
+        a_rank = ranks.index(am.group(4))
+        b_rank = ranks.index(bm.group(4))
+        a_xlarge_rank = int(am.group(3) or 0)
+        b_xlarge_rank = int(bm.group(3) or 0)
 
         if a_cat < b_cat:
             return -1
@@ -357,9 +353,9 @@ def spot_prices():
             return -1
         elif a_rank > b_rank:
             return 1
-        elif a_sub_rank < b_sub_rank:
+        elif a_xlarge_rank < b_xlarge_rank:
             return -1
-        elif a_sub_rank > b_sub_rank:
+        elif a_xlarge_rank > b_xlarge_rank:
             return 1
         else:
             return 0
